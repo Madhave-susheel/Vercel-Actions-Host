@@ -35,11 +35,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # TypeScript type check
       - name: Type Check
         run: npx tsc --noEmit
 
-      # ESLint
       - name: Lint
         run: npm run lint
 
@@ -67,9 +65,16 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
-      # Explicitly link project using env vars (bypasses need for .vercel folder)
-      - name: Link Vercel Project
-        run: vercel link --yes --token=${{ secrets.VERCEL_TOKEN }}
+      # Pull project settings using VERCEL_ORG_ID + VERCEL_PROJECT_ID
+      - name: Pull Vercel Project Settings
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      # Build locally using Vercel CLI
+      - name: Build
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
@@ -79,7 +84,7 @@ jobs:
         if: |
           (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
           github.event_name == 'workflow_dispatch'
-        run: vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
@@ -87,7 +92,7 @@ jobs:
       # Deploy Preview (on Pull Requests only)
       - name: Deploy Preview
         if: github.event_name == 'pull_request'
-        run: vercel deploy --yes --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
