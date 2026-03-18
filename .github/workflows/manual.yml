@@ -28,17 +28,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # 4. Build the Vite project
-      - name: Build
-        run: npm run build
-
-      # 5. Install Vercel CLI
+      # 4. Install Vercel CLI
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
-      # 6. Pull Vercel project settings
+      # 5. Pull Vercel project settings
       - name: Pull Vercel Environment
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      # 6. Build using Vercel CLI (generates .vercel/output needed for --prebuilt)
+      - name: Build with Vercel
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
