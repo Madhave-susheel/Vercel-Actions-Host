@@ -1,4 +1,4 @@
-name: Deploy to Vercel
+name: CI/CD - Deploy to Vercel
 
 on:
   push:
@@ -15,32 +15,66 @@ on:
         default: "main"
 
 jobs:
-  deploy:
+  # ── CI Job ─────────────────────────────────────────────
+  ci:
+    name: CI - Lint & Type Check
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout the selected branch
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.branch || github.ref }}
 
-      # 2. Set up Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: "npm"
 
-      # 3. Install dependencies
       - name: Install dependencies
         run: npm ci
 
-      # 4. Install Vercel CLI
+      # TypeScript type check
+      - name: Type Check
+        run: npx tsc --noEmit
+
+      # ESLint
+      - name: Lint
+        run: npm run lint
+
+  # ── CD Job ─────────────────────────────────────────────
+  deploy:
+    name: CD - Deploy to Vercel
+    runs-on: ubuntu-latest
+    needs: ci
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
-      # 5. Deploy to Production (push to main OR manual trigger)
+      # Explicitly link project using env vars (bypasses need for .vercel folder)
+      - name: Link Vercel Project
+        run: vercel link --yes --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      # Deploy to Production (push to main OR manual trigger)
       - name: Deploy to Production
         if: |
           (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
@@ -50,7 +84,7 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      # 6. Deploy Preview (on Pull Requests only)
+      # Deploy Preview (on Pull Requests only)
       - name: Deploy Preview
         if: github.event_name == 'pull_request'
         run: vercel deploy --yes --token=${{ secrets.VERCEL_TOKEN }}
