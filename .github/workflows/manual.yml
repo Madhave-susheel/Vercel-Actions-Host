@@ -7,15 +7,23 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to deploy"
+        required: true
+        default: "main"
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout the code
+      # 1. Checkout the selected branch
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
 
       # 2. Set up Node.js
       - name: Setup Node.js
@@ -32,16 +40,17 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
-      # 5. Deploy to Production (push to main)
-      #    Vercel handles the build on their servers
+      # 5. Deploy to Production (push to main OR manual trigger)
       - name: Deploy to Production
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: |
+          (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+          github.event_name == 'workflow_dispatch'
         run: vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      # 6. Deploy Preview (on Pull Requests)
+      # 6. Deploy Preview (on Pull Requests only)
       - name: Deploy Preview
         if: github.event_name == 'pull_request'
         run: vercel deploy --yes --token=${{ secrets.VERCEL_TOKEN }}
